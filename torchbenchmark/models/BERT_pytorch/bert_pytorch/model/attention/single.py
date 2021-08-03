@@ -11,7 +11,11 @@ class Attention(nn.Module):
     Compute 'Scaled Dot Product Attention
     """
 
-    def forward(self, query, key, value, dropout: TensorToTensor, mask: Optional[torch.Tensor]=None):
+    def __init__(self, dropout=0.1):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, query, key, value, mask: Optional[torch.Tensor]=None):
         scores = torch.matmul(query, key.transpose(-2, -1)) \
                  / math.sqrt(query.size(-1))
 
@@ -20,6 +24,6 @@ class Attention(nn.Module):
 
         p_attn = F.softmax(scores, dim=-1)
 
-        p_attn = dropout.forward(p_attn)
+        p_attn = self.dropout(p_attn)
 
         return torch.matmul(p_attn, value), p_attn

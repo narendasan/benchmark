@@ -44,19 +44,25 @@ class Model(BenchmarkModel):
         test_data_loader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=args.num_workers) \
             if test_dataset is not None else None
 
-        bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads)
-
-        if args.script:
-            bert = torch.jit.script(bert)
-
-        self.trainer = BERTTrainer(bert, len(vocab), train_dataloader=train_data_loader, test_dataloader=test_data_loader,
-                                   lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
-                                   with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq, debug=args.debug)
-
         example_batch = next(iter(train_data_loader))
         self.example_inputs = example_batch['bert_input'].to(self.device), example_batch['segment_label'].to(self.device)
         self.is_next = example_batch['is_next'].to(self.device)
         self.bert_label = example_batch['bert_label'].to(self.device)
+
+        bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads)
+
+        if args.script:
+            bert = torch.jit.script(bert)
+            bert_eval = bert.eval()
+            #bert_eval = torch.jit.freeze(bert_eval)
+            bert_eval.save("/tmp/bert_eval.ts")
+            print(self.example_inputs[0].shape, self.example_inputs[1].shape)
+            print(self.example_inputs[0].dtype, self.example_inputs[1].dtype)
+            print("torchscript saved")
+
+        self.trainer = BERTTrainer(bert, len(vocab), train_dataloader=train_data_loader, test_dataloader=test_data_loader,
+                                   lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
+                                   with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq, debug=args.debug)
 
     def get_module(self):
         return self.trainer.model, self.example_inputs
